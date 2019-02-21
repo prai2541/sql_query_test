@@ -105,7 +105,7 @@ app.post('/product',async (req, res) => {
   }
 })
 
-
+//edit a product given id
 app.put("/product/:id", async (req, res) => {
   let id = req.params.id
   let {name, description, price} = req.body
@@ -113,9 +113,7 @@ app.put("/product/:id", async (req, res) => {
   if (err) {
     res.status(500),json(err)
   } else {
-    res.json({
-      id: id
-    })
+    res.json(await productModel.get(id))
   }
 })
 
@@ -126,13 +124,15 @@ app.delete("/product/:id", async (req, res) => {
   if (err) {
     res.status(500),json(err)
   } else {
-    res.json(await productModel.getAll)
+    res.json({
+      ack: true
+    })
   }
 })
 
 
 
 
-app.listen(POST, () => {
-    console.log("server started!")
+app.listen(POST, () => { 
+    console.log("server started on port "+ POST)
 })    
