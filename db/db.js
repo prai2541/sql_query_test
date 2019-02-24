@@ -1,5 +1,14 @@
 var mysql = require("mysql");
 
+//gcp db
+// var con = mysql.createConnection({
+//     host: "35.247.156.92",
+//     user: "root",
+//     password: "92951DFD",
+//     database: "testdb",
+// })
+
+//local db
 var con = mysql.createConnection({
     host: "localhost",
     user: "prai",

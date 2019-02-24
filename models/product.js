@@ -19,19 +19,19 @@ async function create(name, description, price) {
 async function edit(id, name, description, price) {
     try {
         let result = await db.query("update products set name = ?, description = ?, price = ? where id =?", [name, description, price, id])
-        return [null]
+        return [null, result]
     }
     catch (err) {
-        return [err]
+        return [err, null]
     }
 }
 async function del(id) {
     try {
         let result = await db.query("delete from products where id = ?", [id])
-        return [null]
+        return [null, result]
     }
     catch (err) {
-        return [err]
+        return [err, null]
     }
 }
 

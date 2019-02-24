@@ -71,6 +71,7 @@ app.get('/', (req, res) => {
 
 
 const productModel = require('./models/product')
+const orderModel = require("./models/order")
 
 
 //fe wants list of product
@@ -79,7 +80,7 @@ app.get('/product',async (req, res) => {
 })
 
 
-// wants specific product 
+// wants specific product, given id 
 app.get('/product/:id',async (req, res) => {
   let id = req.params.id
   let products = await productModel.get(id)
@@ -97,7 +98,7 @@ app.post('/product',async (req, res) => {
   let [err, insertId] = await productModel.create(name, description, price)
   //db.query("insert into products set name = ?, description = ?, price = ?", [name, description, price])
   if (err) {
-    res.status(500),json(err)
+    res.status(500).json(err)
   } else {
     res.json({
       id: insertId
@@ -109,28 +110,51 @@ app.post('/product',async (req, res) => {
 app.put("/product/:id", async (req, res) => {
   let id = req.params.id
   let {name, description, price} = req.body
-  let [err] = await productModel.edit(id, name, description, price)
+  let [err, result] = await productModel.edit(id, name, description, price)
   if (err) {
-    res.status(500),json(err)
-  } else {
-    res.json(await productModel.get(id))
+    res.status(500).json(err)
+  } else if (result.affectedRows == 0){
+    res.status(404).send()
+  }else {
+    res.status(200).send()
   }
 })
 
-
+//delete a product given id
 app.delete("/product/:id", async (req, res) => {
   let id = req. params.id
-  let [err] = await productModel.del(id)
+  let [err, result] = await productModel.del(id)
   if (err) {
-    res.status(500),json(err)
-  } else {
-    res.json({
-      ack: true
-    })
+    res.status(500).json(err)
+  } else if (result.affectedRows == 0){
+    res.status(404).send()
+  }else {
+    res.status(200).send()
   }
 })
 
+app.put("/v1/orders/:orderId/:orderStatus", async (req, res) => {
+  let id = req.params.orderId
+  let orderStatus = req.params.orderStatus
+  let [err, result] = await orderModel.updateOrderStatus(id, orderStatus)
+  if (err) {
+    res.status(500).json(err)
+  } else if (result.affectedRows == 0){
+    res.status(404).send()
+  }else {
+    res.json(await orderModel.getOrderStatus(id))
+  }
+})
 
+app.get("/v1/orders/:orderId", async (req, res) => {
+  let id = req.params.orderId
+  let orderStatus = await orderModel.getOrderStatus(id)
+  if (orderStatus) {
+    res.json(orderStatus)
+  } else {
+    res.status(404).send()
+  }
+})
 
 
 app.listen(POST, () => { 
