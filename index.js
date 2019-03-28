@@ -80,6 +80,7 @@ app.get('/product',async (req, res) => {
 })
 
 
+
 // wants specific product, given id 
 app.get('/product/:id',async (req, res) => {
   let id = req.params.id
@@ -133,11 +134,15 @@ app.delete("/product/:id", async (req, res) => {
   }
 })
 
-app.put("/v1/orders/:orderId/:orderStatus", async (req, res) => {
+app.put("/v1/orders/:orderId/status", async (req, res) => {
   let id = req.params.orderId
-  let orderStatus = req.params.orderStatus
+  let {orderStatus} = req.body
   let [err, result] = await orderModel.updateOrderStatus(id, orderStatus)
-  if (err) {
+  if (err == "order_status_not_exist") {
+    res.status(400).json({
+      message: err
+    })
+  } else if (err) {
     res.status(500).json(err)
   } else if (result.affectedRows == 0){
     res.status(404).send()
@@ -156,6 +161,44 @@ app.get("/v1/orders/:orderId", async (req, res) => {
   }
 })
 
+app.get("/v1/orders/:id/slot", async (req, res) => {                 
+  let id = req.params.id
+  let slotNo = await orderModel.getSlotNo(id)
+  if (slotNo) {
+    res.json(slotNo)
+  } else {
+    res.status(404).send()
+  }
+})
+
+// app.get("/v1/orders/customers/:cid", async (req, res) => {
+//   let cid = req.params.id
+//   res.json(orderModel.getCustOrderList(cid))
+// })
+
+app.get("/v1/orders/:vid/menu", async (req, res) => {                     // coded rdy to deploy
+  let vid = req.params.vid
+  let result = await orderModel.getVendorMenu(vid)
+  res.json(result)
+})
+
+app.get("/v1/:vid/menu/:fid", async (req, res) => {
+  let vid = req.params.vid
+  let fid = req.params.fid
+  let foodAndExtra = await orderModel.getFoodAndExtra(vid, fid)
+  res.json(foodAndExtra)
+})
+
+app.get("/v1/orders/:vid/combination", async (req, res) => {
+  let vid = req.params.vid
+  let result = await orderModel.getBaseMainExtraList(vid)
+  res.json(result)
+})
+
+// app.get("/v1/orders/customers/:custid", async (req, res) => {
+//   let id = req.params.custid
+
+// })
 
 app.listen(POST, () => { 
     console.log("server started on port "+ POST)

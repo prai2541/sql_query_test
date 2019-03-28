@@ -9,8 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.18.0",
     "body-parser": "^1.18.3",
     "express": "^4.16.4",
+    "googleapis": "^38.0.0",
     "md5": "^2.2.1",
     "mysql": "^2.16.0"
   }

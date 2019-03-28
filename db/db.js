@@ -8,6 +8,14 @@ var mysql = require("mysql");
 //     database: "testdb",
 // })
 
+//gcp ACTUAL VCANTEEN DB
+// var con = mysql.createConnection({
+//     host: "35.240.232.120",
+//     user: "root",
+//     password: "root",
+//     database: "vcanteen-db",
+// })
+
 //local db
 var con = mysql.createConnection({
     host: "localhost",
