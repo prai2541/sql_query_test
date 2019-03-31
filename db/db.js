@@ -9,20 +9,21 @@ var mysql = require("mysql");
 // })
 
 //gcp ACTUAL VCANTEEN DB
-// var con = mysql.createConnection({
-//     host: "35.240.232.120",
-//     user: "root",
-//     password: "root",
-//     database: "vcanteen-db",
-// })
+var con = mysql.createConnection({
+    host: "35.240.206.151",
+    user: "root",
+    password: "root",
+    database: "vcanteen-db-v1"
+    
+})
 
 //local db
-var con = mysql.createConnection({
-    host: "localhost",
-    user: "prai",
-    password: "1234567890",
-    database: "testdb",
-})
+// var con = mysql.createConnection({
+//     host: "localhost",
+//     user: "prai",
+//     password: "1234567890",
+//     database: "testdb",
+// })
 
 con.connect()
 

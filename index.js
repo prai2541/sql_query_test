@@ -72,6 +72,7 @@ app.get('/', (req, res) => {
 
 const productModel = require('./models/product')
 const orderModel = require("./models/order")
+const clearSlot = require("./db/db")
 
 
 //fe wants list of product
@@ -171,12 +172,7 @@ app.get("/v1/orders/:id/slot", async (req, res) => {
   }
 })
 
-// app.get("/v1/orders/customers/:cid", async (req, res) => {
-//   let cid = req.params.id
-//   res.json(orderModel.getCustOrderList(cid))
-// })
-
-app.get("/v1/orders/:vid/menu", async (req, res) => {                     // coded rdy to deploy
+app.get("/v1/orders/:vid/menu", async (req, res) => {                     
   let vid = req.params.vid
   let result = await orderModel.getVendorMenu(vid)
   res.json(result)
@@ -195,10 +191,49 @@ app.get("/v1/orders/:vid/combination", async (req, res) => {
   res.json(result)
 })
 
+app.get("/v1/orders/:oid/status-change", async (req, res) => {
+  let oid = req.params.oid
+  let status = req.body.order_status
+  let [err, result] = await orderModel.updateOrderStatus(oid, status)
+  if (err == "order_status_not_exist") {
+    res.status(400).json({
+      message: err
+    })
+  } else if (err) {
+    res.status(500).json(err)
+  } else if (result.affectedRows == 0){
+    res.status(404).send()
+  }else {
+    res.json(await orderModel.getOrderStatus(id))
+  }
+})
+
+app.post("/v1/orders/new", async (req, res) => {
+  let {foods, order_price, customer_id, vendor_id, created_at, transaction_id} = req.body
+  //let foods = req.body.foods
+  let response = await orderModel.postNewOrder(foods, order_price, created_at, vendor_id, customer_id, transaction_id)
+  res.json(response)
+
+})
+
+
+
+// app.post("/v1/orders/new", async (req, res) => {
+//   let {food_id, }
+// })
 // app.get("/v1/orders/customers/:custid", async (req, res) => {
 //   let id = req.params.custid
 
 // })
+
+// function removeExpire (){
+//   let now = new Date()
+//   let time = `${now.getYear() + 1900}-${now.getMonth() + 1}-${now.getDate()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`
+//   clearSlot.query("update slot set order_id = null, expire_at = null where expire_at < ?", [time])
+  
+// }
+
+// setInterval(removeExpire, 3*60*1000)
 
 app.listen(POST, () => { 
     console.log("server started on port "+ POST)
