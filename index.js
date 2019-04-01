@@ -178,7 +178,7 @@ app.get("/v1/orders/:vid/menu", async (req, res) => {
   res.json(result)
 })
 
-app.get("/v1/:vid/menu/:fid", async (req, res) => {
+app.get("/v1/orders/:vid/menu/:fid", async (req, res) => {
   let vid = req.params.vid
   let fid = req.params.fid
   let foodAndExtra = await orderModel.getFoodAndExtra(vid, fid)
@@ -209,9 +209,9 @@ app.get("/v1/orders/:oid/status-change", async (req, res) => {
 })
 
 app.post("/v1/orders/new", async (req, res) => {
-  let {foods, order_price, customer_id, vendor_id, created_at, transaction_id} = req.body
+  let {orders, customerId, vendorId, createdAt, customerMoneyAccountId, totalPrice} = req.body
   //let foods = req.body.foods
-  let response = await orderModel.postNewOrder(foods, order_price, created_at, vendor_id, customer_id, transaction_id)
+  let response = await orderModel.postNewOrder(orders, customerId, vendorId, createdAt, customerMoneyAccountId, totalPrice)
   res.json(response)
 
 })

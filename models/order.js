@@ -30,15 +30,18 @@ async function getOrderStatus(id) {
 }
 
 async function getSlotNo(id) {
-    let slotNo = await db.query("select slot_id from Orders where order_id = ?", [id])
+    let slotNo = await db.query("select slot_id as slotID from Is_At where order_id = ?", [id])
     return slotNo.length == 1 ? slotNo[0] : null
 }
 
 async function getVendorMenu(vid) {
     let minBasePrice = 999999999
     let minMainPrice = 999999999
-    let minCombinationPrice = minBasePrice + minMainPrice
-    let vendor = await db.query("select restaurant_number, restaurant_name from Vendors where vendor_id = ?", [vid])  //need to add select vendor_image b4 deploy
+    let minCombinationPrice = 0
+    let availist = []
+    let soldoutlist = []
+    let hasCombination = true
+    let vendor = await db.query("select restaurant_number as restaurantNumber, restaurant_name as restaurantName from Vendors where vendor_id = ?", [vid])  //need to add select vendor_image b4 deploy
     let menulist = await db.query("select * from Food where vendor_id = ? and food_type != 'alacarte'", [vid])
     let foodlist = await db.query("select * from Food where vendor_id = ? and food_type = 'alacarte'", [vid])
     menulist.forEach(menu => {
@@ -49,18 +52,29 @@ async function getVendorMenu(vid) {
             if (menu.food_price < minMainPrice) minMainPrice = menu.food_price
         }
     })
-    if (minBasePrice+minMainPrice == 1999999998) {
+    foodlist.forEach(food => {
+        const {food_id,food_name,food_price} = food
+        if (food.food_status == "AVAILABLE") {
+            availist.push({foodId:food_id,foodName:food_name,foodPrice:food_price})
+        }
+        if (food.food_status == "SOLD_OUT") {
+            soldoutlist.push({foodId:food_id,foodName:food_name,foodPrice:food_price})
+        }
+    })    
+    minCombinationPrice = minBasePrice+minMainPrice
+    if (minBasePrice == 999999999 || minMainPrice == 999999999) {
         minCombinationPrice = null
+        hasCombination = false
     }
-    let response = {"vendor" : vendor, "menulist": foodlist, "minCombinationPrice" : minCombinationPrice}
+    let response = {"vendor" : vendor[0], "availableList": availist, "soldOutList" : soldoutlist, "hasCombination" : hasCombination, "minCombinationPrice" : minCombinationPrice}
     return response
     
 }
 
 async function getFoodAndExtra(vid, fid) {
-    let food = await db.query("select food_id, food_name, food_price from Food where food_id =?", [fid])
-    let extraList = await db.query("select food_id, food_name, food_price, food_status from Food where food_type = 'EXTRA' and vendor_id = ?", [vid])
-    let response = {"food" : food, "extralist" : extraList}
+    let food = await db.query("select food_id as foodId, food_name as foodName, food_price as foodPrice from Food where food_id =?", [fid])
+    let extraList = await db.query("select food_id as foodId, food_name as foodName, food_price as foodPrice, food_status as foodStatus from Food where food_type = 'EXTRA' and vendor_id = ?", [vid])
+    let response = {"food" : food[0], "extralist" : extraList}
     return response
 }
 
@@ -70,14 +84,15 @@ async function getBaseMainExtraList(vid) {
     let mainlist = []
     let extralist = []
     foodlist.forEach(menu => {
+        const {food_id,food_name,food_price,food_status,food_type} = menu
         if (menu.food_type == "COMBINATION_BASE") {
-            baselist.push(menu)
+            baselist.push({foodId:food_id,foodName:food_name,foodPrice:food_price,foodStatus:food_status,foodType:food_type})
         }
         if (menu.food_type == "COMBINATION_MAIN") {
-            mainlist.push(menu)
+            mainlist.push({foodId:food_id,foodName:food_name,foodPrice:food_price,foodStatus:food_status,foodType:food_type})
         }
         if (menu.food_type == "EXTRA") {
-            extralist.push(menu)
+            extralist.push({foodId:food_id,foodName:food_name,foodPrice:food_price,foodStatus:food_status,foodType:food_type})
         }
     })
     let response = {"baseList" : baselist, "mainList" : mainlist, "extraList" : extralist}
@@ -85,43 +100,103 @@ async function getBaseMainExtraList(vid) {
 
 }
 
-async function postNewOrder(foods, order_price, created_at, vendor_id, customer_id, transaction_id) {
-    let names = []
-    let extraNames = []
-    let fids = []
-    foods.forEach(food =>  {
-        fids.push(food.food_id)
-        if (food.food_type != "EXTRA") {
-            names.push(food.food_name)
-        } else {
-            extraNames.push(food.food_name)
-        }
-    })
-    let order_name = names.reduce((a,b) => {
-        if (a > b) return `${b}, ${a}`
-        else return `${a}, ${b}`
-        
-    })
+async function postNewOrder(orders, customerId, vendorId, createdAt, customerMoneyAccountId, totalPrice) {
+    let response = []
+    let vendorAcc = await db.query("select vm.balance, vm.money_account_id as moneyAccId from VendorMoneyAccounts vm join Vendor_Links vl on vm.money_account_id = vl.money_account_id where vl.vendor_id = ?",[vendorId])
+    let custAcc = await db.query("select balance, money_account_id as moneyAccId from CustomerMoneyAccounts where money_account_id = ?", [customerMoneyAccountId])
+    console.log(custAcc[0].balance, vendorAcc[0].balance)
+    custAcc[0].balance -= totalPrice
+    vendorAcc[0].balance += totalPrice
+    console.log(custAcc[0].balance, vendorAcc[0].balance)
+    console.log(vendorAcc)
+    console.log(custAcc)
+
+    let changeCustBalance = await db.query("update CustomerMoneyAccounts set balance = ? where money_account_id = ?", [custAcc[0].balance, customerMoneyAccountId])
+    let changeVendorBalance = await db.query("update VendorMoneyAccounts set balance = ? where money_account_id = ?", [vendorAcc[0].balance, vendorAcc[0].moneyAccId])
+    let transacResult = await db.query("insert into Transactions(created_at, customer_money_account_id, vendor_money_account_id) values (?, ?, ?)", [createdAt, customerMoneyAccountId, vendorAcc[0].moneyAccId])
     
-    let order_name_extra =  extraNames.reduce((a,b) => {
-        if (a > b) return `${b}, ${a}`
-        else return `${a}, ${b}`
+    orders.forEach(async order => {
+        let names = []
+        let extraNames = []
+        let fids = []
+        let orderprice = 0
+        let orderName = ""
+        let orderNameExtra = ""
+        
+        
+        order.forEach(food => {
+            fids.push(food.foodId)
+            orderprice += food.foodPrice
+            if (food.foodType != "EXTRA") {
+            names.push(food.foodName)
+            } else {
+            extraNames.push(food.foodName)
+        }
+        })
+        if (names[0]!= null) {
+        orderName = names.reduce((a,b) => {
+            if (a > b) return `${b}, ${a}`
+            else return `${a}, ${b}`
+            
+        })
+        }
+        if (extraNames[0] != null) {
+        orderNameExtra =  extraNames.reduce((a,b) => {
+            if (a > b) return `${b}, ${a}`
+            else return `${a}, ${b}`
+            
+        })
+        
+        }
+        if (orderName == "") orderName = null
+        if (orderNameExtra == "") orderNameExtra = null
+        
+        
+        
+        let orderResult = await db.query("insert into Orders(order_name, order_name_extra, order_status, order_price, customer_id, created_at, vendor_id, transaction_id) values (?, ?, 'COOKING', ?, ?, ?, ?, ?)", [orderName, orderNameExtra, orderprice, customerId, createdAt, vendorId, transacResult.insertId])
+        fids.forEach(fid => {
+            let insertContain = db.query("insert into Contains(order_id, food_id) values (?, ?)", [orderResult.insertId, fid])
+        })
+
+        response.push({"orderId" : orderResult.insertId, "orderName" : orderName, "orderNameExtra" : orderNameExtra, "orderStatus" : "COOKING"})
         
     })
+    console.log(response)
+    return response
+}    
+    // foods.forEach(food =>  {
+    //     fids.push(food.food_id)
+    //     if (food.food_type != "EXTRA") {
+    //         names.push(food.food_name)
+    //     } else {
+    //         extraNames.push(food.food_name)
+    //     }
+    // })
+    // let order_name = names.reduce((a,b) => {
+    //     if (a > b) return `${b}, ${a}`
+    //     else return `${a}, ${b}`
+        
+    // })
+    
+    // let order_name_extra =  extraNames.reduce((a,b) => {
+    //     if (a > b) return `${b}, ${a}`
+    //     else return `${a}, ${b}`
+        
+    // })
     // console.log(order_name)
     // console.log(order_name_extra)
     // console.log(names)
     // console.log(extraNames)
     // console.log(fids)
 
-    let orderResult = await db.query("insert into Orders(order_name, order_name_extra, order_status, order_price, customer_id, created_at, vendor_id, transaction_id) values (?, ?, 'COOKING', ?, ?, ?, ?, ?)", [order_name, order_name_extra, order_price, customer_id, created_at, vendor_id, transaction_id])
-    fids.forEach(fid => {
-        let insertContain = db.query("insert into Contains(order_id, food_id) values (?, ?)", [orderResult.insertId, fid])
-    })
-    let response = {"order_id" : orderResult.insertId, "order_name" : order_name, "order_name_extra" : order_name_extra, "order_status" : 'COOKING'}
-    return response
+    // let orderResult = await db.query("insert into Orders(order_name, order_name_extra, order_status, order_price, customer_id, created_at, vendor_id, transaction_id) values (?, ?, 'COOKING', ?, ?, ?, ?, ?)", [order_name, order_name_extra, order_price, customer_id, created_at, vendor_id, transaction_id])
+    // fids.forEach(fid => {
+    //     let insertContain = db.query("insert into Contains(order_id, food_id) values (?, ?)", [orderResult.insertId, fid])
+    // })
+    //let response = {"order_id" : orderResult.insertId, "order_name" : order_name, "order_name_extra" : order_name_extra, "order_status" : 'COOKING'}
+    
 
-}    
+
     // orders.forEach(({orderID,foodName,foodType}) => {
     //   if(!tempMap[foodName]){
     //     tempMap[foodName] = foodType;
